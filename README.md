@@ -1,12 +1,17 @@
 # Infraestructura como Código - AWS Backup
 
-Este repositorio contiene la configuración de Terraform para implementar una solución de respaldo automatizado en AWS.
+Este repositorio contiene la configuración de Terraform para implementar una solución de respaldo automatizado en AWS y un balanceador de carga con distribución 70/30.
 
 ## Archivos principales
 
 - `main.tf`: Configuración principal de recursos
 - `variables.tf`: Definición de variables
 - `outputs.tf`: Outputs definidos del proyecto
+
+## Características
+
+- Backup automatizado en AWS
+- Balanceador de carga con distribución 70/30
 
 ## Requisitos
 
