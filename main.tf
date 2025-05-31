@@ -104,19 +104,27 @@ resource "aws_instance" "app1" {
               
               # Clean yum cache and enable nginx1
               sudo yum clean all
+              echo "Enabling nginx1 repository..."
               sudo amazon-linux-extras enable nginx1
               sudo yum -y clean metadata
-              sudo yum -y install nginx1
+              echo "Installing nginx package (not nginx1)..."
+              sudo yum -y install nginx
               
               if [ $? -ne 0 ]; then
                 echo "Failed to install Nginx"
+                echo "Checking available packages in the nginx1 repository:"
+                sudo yum list available nginx*
                 exit 1
               fi
+              
+              # Verify nginx was installed correctly
+              echo "Verifying nginx installation..."
+              rpm -qa | grep nginx
               
               # Create directory and content
               echo "Creating web content directories..."
               sudo mkdir -p /usr/share/nginx/html/app1
-              echo "<h1>APP 1 (70% tráfico)</h1>" | sudo tee /usr/share/nginx/html/app1/index.html
+              echo "<h1>APP 1 (70% trafico)</h1>" | sudo tee /usr/share/nginx/html/app1/index.html
               echo "OK" | sudo tee /usr/share/nginx/html/app1/health.html
               
               # Configure Nginx
@@ -172,6 +180,10 @@ resource "aws_instance" "app1" {
               echo "Testing Nginx configuration..."
               sudo nginx -t
               
+              # Verify nginx service status
+              echo "Checking Nginx service status..."
+              sudo systemctl status nginx
+              
               # Wait a moment for Nginx to start
               sleep 5
               
@@ -180,10 +192,15 @@ resource "aws_instance" "app1" {
               curl -v http://localhost/app1/health.html
               if [ $? -ne 0 ]; then
                 echo "Failed to access health check endpoint"
+                echo "Checking nginx error logs:"
                 sudo cat /var/log/nginx/error.log
                 sudo cat /var/log/nginx/app1_error.log
                 sudo cat /var/log/nginx/health_error.log
                 sudo nginx -t
+                echo "Checking if port 80 is listening:"
+                sudo netstat -tlnp | grep :80
+                echo "Checking SELinux status:"
+                getenforce
               else
                 echo "Health check endpoint is accessible"
               fi
@@ -191,6 +208,11 @@ resource "aws_instance" "app1" {
               # List the contents of the app1 directory to verify files
               echo "Contents of /usr/share/nginx/html/app1:"
               ls -la /usr/share/nginx/html/app1/
+              
+              # Verify the health.html file has correct content and permissions
+              echo "Checking health.html content and permissions:"
+              cat /usr/share/nginx/html/app1/health.html
+              ls -la /usr/share/nginx/html/app1/health.html
               
               echo "User data script completed."
               EOF
@@ -219,7 +241,7 @@ resource "aws_instance" "app2" {
               # Create directories and content
               echo "Creating web content..."
               sudo mkdir -p /var/www/html/app2
-              echo "<h1>APP 2 (30% tráfico)</h1>" | sudo tee /var/www/html/app2/index.html
+              echo "<h1>APP 2 (30% trafico)</h1>" | sudo tee /var/www/html/app2/index.html
               echo "OK" | sudo tee /var/www/html/app2/health.html
               
               # Configure Apache
