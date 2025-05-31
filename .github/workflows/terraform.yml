@@ -1,0 +1,73 @@
+name: "Terraform CI/CD with LocalStack"
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  terraform:
+    name: "Terraform with LocalStack"
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.0.0
+
+      - name: Terraform Format Check
+        id: fmt
+        run: terraform fmt -check
+        continue-on-error: true
+
+      - name: Terraform Init
+        id: init
+        run: terraform init -backend=false
+
+      - name: Terraform Validate
+        id: validate
+        run: terraform validate
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v2
+
+      - name: Start LocalStack
+        run: |
+          docker-compose up -d localstack
+          # Wait for LocalStack to be ready
+          echo "Waiting for LocalStack to be ready..."
+          timeout 60s bash -c 'until docker exec localstack curl -s http://localhost:4566/health | grep -q "\"s3\": \"running\""; do sleep 5; done'
+          echo "LocalStack is ready!"
+
+      - name: Terraform Plan with LocalStack
+        id: plan
+        run: |
+          # Set environment variables for LocalStack
+          export AWS_ACCESS_KEY_ID=test
+          export AWS_SECRET_ACCESS_KEY=test
+          export AWS_DEFAULT_REGION=us-east-1
+          
+          terraform plan -no-color
+
+      - name: Terraform Apply with LocalStack
+        id: apply
+        run: |
+          # Set environment variables for LocalStack
+          export AWS_ACCESS_KEY_ID=test
+          export AWS_SECRET_ACCESS_KEY=test
+          export AWS_DEFAULT_REGION=us-east-1
+          
+          terraform apply -auto-approve
+
+      - name: Validate infrastructure
+        run: |
+          # Simple validation to check if resources were created
+          docker exec localstack aws --endpoint-url=http://localhost:4566 ec2 describe-vpcs
+          docker exec localstack aws --endpoint-url=http://localhost:4566 ec2 describe-instances
+          docker exec localstack aws --endpoint-url=http://localhost:4566 elbv2 describe-load-balancers
+
